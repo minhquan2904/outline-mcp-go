@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -158,43 +159,49 @@ func redact(text, apiKey string) string {
 	return strings.ReplaceAll(text, apiKey, "ol_api_***")
 }
 
-func ParseDocRef(idOrUrl string) *DocRef {
-	idOrUrl = strings.TrimSpace(idOrUrl)
+var (
+	uuidRE  = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	urlIDRE = regexp.MustCompile(`^[A-Za-z0-9]{10,15}$`) // measured on a live instance: 9 rejected, 10-15 accepted, 16 rejected
+	httpRE  = regexp.MustCompile(`(?i)^https?://`)
+)
 
-	// UUID format: 550e8400-e29b-41d4-a716-446655440000
-	if len(idOrUrl) == 36 && strings.Count(idOrUrl, "-") == 4 {
-		return &DocRef{Kind: "uuid", ID: idOrUrl}
+const refHint = "expected a UUID, a 10-15 character urlId, or a document URL like /doc/title-a1B2c3D4e5"
+
+// ParseDocRef resolves a pasted UUID, urlId or document URL to an id that documents.info accepts.
+func ParseDocRef(input string) *DocRef {
+	s := strings.TrimSpace(input)
+	if s == "" {
+		return &DocRef{Kind: "invalid", Err: "Empty document reference — " + refHint + "."}
+	}
+	if uuidRE.MatchString(s) {
+		return &DocRef{Kind: "uuid", ID: s}
 	}
 
-	// URL format: https://host/doc/title-a1B2c3D4e5
-	if strings.HasPrefix(idOrUrl, "http://") || strings.HasPrefix(idOrUrl, "https://") {
-		parts := strings.Split(idOrUrl, "/")
-		if len(parts) > 0 {
-			last := parts[len(parts)-1]
-			// Extract ID after last hyphen (urlId is 7+ chars alphanumeric)
-			if idx := strings.LastIndex(last, "-"); idx > 0 && idx < len(last)-1 {
-				id := last[idx+1:]
-				if len(id) >= 7 {
-					return &DocRef{Kind: "url", ID: id}
-				}
-			}
+	segment := s
+	if idx := strings.Index(s, "/doc/"); idx != -1 {
+		segment = s[idx+len("/doc/"):]
+		// drop sub-paths such as /edit or /history
+		if i := strings.Index(segment, "/"); i != -1 {
+			segment = segment[:i]
 		}
-		return &DocRef{Kind: "invalid", Err: "URL format: expected /doc/title-urlId"}
+	} else if httpRE.MatchString(s) || strings.HasPrefix(s, "/") {
+		return &DocRef{Kind: "invalid", Err: fmt.Sprintf("%q is not a document URL — %s.", s, refHint)}
 	}
 
-	// Bare ID (alphanumeric, at least 7 chars)
-	if len(idOrUrl) >= 7 && isAlphanumeric(idOrUrl) {
-		return &DocRef{Kind: "id", ID: idOrUrl}
+	if i := strings.IndexAny(segment, "?#"); i != -1 {
+		segment = segment[:i]
+	}
+	segment = strings.TrimRight(segment, "/")
+	if segment == "" {
+		return &DocRef{Kind: "invalid", Err: fmt.Sprintf("%q has no document id — %s.", s, refHint)}
 	}
 
-	return &DocRef{Kind: "invalid", Err: "Invalid document reference format"}
-}
-
-func isAlphanumeric(s string) bool {
-	for _, c := range s {
-		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-') {
-			return false
-		}
+	candidate := segment
+	if dash := strings.LastIndex(segment, "-"); dash != -1 {
+		candidate = segment[dash+1:]
 	}
-	return true
+	if urlIDRE.MatchString(candidate) {
+		return &DocRef{Kind: "urlId", ID: candidate}
+	}
+	return &DocRef{Kind: "invalid", Err: fmt.Sprintf("%q is not a document reference — %s.", s, refHint)}
 }

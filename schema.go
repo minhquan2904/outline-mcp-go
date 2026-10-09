@@ -18,6 +18,7 @@ func objectSchema(required []string, props schema) schema {
 
 var (
 	limitProp  = intRange("Max results", 1, 50)
+	limit100   = intRange("Max results", 1, 100)
 	offsetProp = schema{"type": "integer", "description": "Results to skip", "minimum": 0}
 	maxChars   = schema{"type": "integer", "description": "Truncate body at this many characters", "minimum": 1}
 )
@@ -41,13 +42,13 @@ var toolSchemas = map[string]schema{
 		"maxChars": maxChars,
 	}),
 	"list_collections": objectSchema(nil, schema{
-		"limit":  limitProp,
+		"limit":  limit100,
 		"offset": offsetProp,
 	}),
 	"list_documents": objectSchema(nil, schema{
 		"collectionId":     str("List documents of this collection"),
 		"parentDocumentId": str("List children of this document"),
-		"limit":            limitProp,
+		"limit":            limit100,
 		"offset":           offsetProp,
 	}),
 	"list_revisions": objectSchema([]string{"documentId"}, schema{
@@ -59,4 +60,29 @@ var toolSchemas = map[string]schema{
 		"revisionId": str("Revision id from list_revisions"),
 		"maxChars":   maxChars,
 	}),
+	"list_comments": objectSchema([]string{"documentId"}, schema{
+		"documentId": str("UUID of the document"),
+		"limit":      intRange("Max results", 1, 100),
+		"offset":     offsetProp,
+	}),
+	"create_document": objectSchema([]string{"title", "collectionId"}, schema{
+		"title":            str("Document title"),
+		"text":             str("Markdown body"),
+		"collectionId":     str("Collection to create the document in"),
+		"parentDocumentId": str("Nest under this document"),
+		"publish":          schema{"type": "boolean", "description": "Publish immediately (default) or leave as draft"},
+	}),
+	"update_document": objectSchema([]string{"documentId"}, schema{
+		"documentId": str("Document URL, urlId, or UUID"),
+		"text":       str("Markdown to write"),
+		"title":      str("New title"),
+		"append":     schema{"type": "boolean", "description": "Append (default) or replace the body"},
+	}),
+	"move_document": objectSchema([]string{"documentId"}, schema{
+		"documentId":       str("Document URL, urlId, or UUID"),
+		"collectionId":     str("Destination collection"),
+		"parentDocumentId": str("Destination parent document"),
+	}),
+	"archive_document": objectSchema([]string{"documentId"}, schema{"documentId": str("Document URL, urlId, or UUID")}),
+	"delete_document":  objectSchema([]string{"documentId"}, schema{"documentId": str("Document URL, urlId, or UUID")}),
 }

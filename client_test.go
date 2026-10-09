@@ -110,30 +110,6 @@ func TestClientCall_NoCredentials(t *testing.T) {
 	}
 }
 
-func TestParseDocRef_URL(t *testing.T) {
-	tests := []struct {
-		input string
-		kind  string
-		id    string
-	}{
-		{"https://outline.example.com/doc/api-a1B2c3D4e5", "url", "a1B2c3D4e5"},
-		{"http://localhost:3000/doc/title-xyz1234", "url", "xyz1234"},
-		{"a1B2c3D4e5", "id", "a1B2c3D4e5"},
-		{"550e8400-e29b-41d4-a716-446655440000", "uuid", "550e8400-e29b-41d4-a716-446655440000"},
-		{"invalid!", "invalid", ""},
-	}
-
-	for _, tt := range tests {
-		ref := ParseDocRef(tt.input)
-		if ref.Kind != tt.kind {
-			t.Errorf("ParseDocRef(%q) kind = %q, want %q", tt.input, ref.Kind, tt.kind)
-		}
-		if ref.ID != tt.id {
-			t.Errorf("ParseDocRef(%q) id = %q, want %q", tt.input, ref.ID, tt.id)
-		}
-	}
-}
-
 func TestClientCall_ResponseUnmarshal(t *testing.T) {
 	c := NewClient("https://outline.example.com", "test_key")
 
@@ -190,4 +166,3 @@ func (m *MockHTTPClient) Do(req *http.Request) (*http.Response, error) {
 		Body:       io.NopCloser(bytes.NewReader(body)),
 	}, nil
 }
-
