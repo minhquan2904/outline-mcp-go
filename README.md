@@ -32,6 +32,18 @@ export OUTLINE_API_KEY=your_api_key
 ./outline-mcp-go
 ```
 
+## Docker
+
+```bash
+cp .env.example .env        # điền OUTLINE_API_URL và OUTLINE_API_KEY
+docker compose build
+docker compose run --rm -T outline-mcp
+```
+
+Server nói chuyện qua stdio nên không có cổng để publish. Để dùng với MCP client,
+trỏ lệnh khởi động của client tới `docker compose run --rm -T outline-mcp`
+(đặt thư mục làm việc là thư mục repo này).
+
 ## Tools
 
 - `search_documents` — Full-text search
@@ -60,7 +72,6 @@ export OUTLINE_API_KEY=your_api_key
 
 ## TODO
 
-- [ ] Full JSON Schema for tool parameters
 - [ ] Integration tests with mock Outline API
 - [ ] Handle pagination in list operations
 - [ ] Add list_comments tool

@@ -1,0 +1,13 @@
+# MCP server chạy qua stdio: không có cổng để publish.
+# Chạy: docker compose run --rm -T outline-mcp
+services:
+  outline-mcp:
+    build: .
+    image: outline-mcp-go:latest
+    stdin_open: true
+    environment:
+      OUTLINE_API_URL: ${OUTLINE_API_URL:?đặt OUTLINE_API_URL trong .env}
+      OUTLINE_API_KEY: ${OUTLINE_API_KEY:?đặt OUTLINE_API_KEY trong .env}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]

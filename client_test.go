@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -84,13 +87,13 @@ func TestClientCall_Timeout(t *testing.T) {
 	}
 	c.httpClient = mockHTTP
 
-	result, err := c.Call(context.Background(), "documents.search", map[string]interface{}{})
+	result, _ := c.Call(context.Background(), "documents.search", map[string]interface{}{})
 
 	if result.Ok {
 		t.Errorf("expected timeout error")
 	}
-	if !strings.Contains(result.Error, "timeout") {
-		t.Errorf("expected timeout in error, got: %s", result.Error)
+	if !strings.Contains(result.Error, "timed out") {
+		t.Errorf("expected timed out in error, got: %s", result.Error)
 	}
 }
 
@@ -114,7 +117,7 @@ func TestParseDocRef_URL(t *testing.T) {
 		id    string
 	}{
 		{"https://outline.example.com/doc/api-a1B2c3D4e5", "url", "a1B2c3D4e5"},
-		{"http://localhost:3000/doc/title-xyz123", "url", "xyz123"},
+		{"http://localhost:3000/doc/title-xyz1234", "url", "xyz1234"},
 		{"a1B2c3D4e5", "id", "a1B2c3D4e5"},
 		{"550e8400-e29b-41d4-a716-446655440000", "uuid", "550e8400-e29b-41d4-a716-446655440000"},
 		{"invalid!", "invalid", ""},
@@ -170,5 +173,21 @@ func TestClientCall_ResponseUnmarshal(t *testing.T) {
 // Helper mock for HTTP
 type MockHTTPClient struct {
 	DoFn func(req interface{}) ([]byte, int, error)
+}
+
+func (m *MockHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	body, status, err := m.DoFn(req)
+	if err != nil {
+		return nil, err
+	}
+	// like http.Client: fail once the request context is done
+	if err := req.Context().Err(); err != nil {
+		return nil, err
+	}
+	return &http.Response{
+		StatusCode: status,
+		Header:     http.Header{},
+		Body:       io.NopCloser(bytes.NewReader(body)),
+	}, nil
 }
 

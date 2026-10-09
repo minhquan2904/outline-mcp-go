@@ -1,0 +1,4 @@
+.git
+.env
+outline-mcp-go
+*_test.go
